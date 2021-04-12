@@ -1,2 +1,6 @@
-# viceroy_chain_demo
-A demonstration project for a decentralised DNS blockchain.
+# Viceroy Chain - A Demonstration project for a decentralised DNS blockchain
+[Insert]
+## Purpose
+
+## Main features
+
