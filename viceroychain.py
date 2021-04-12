@@ -34,7 +34,7 @@ class BlockChain(object):
         prev_vice_hash = "0"
         if len(self.viceroy_chain) > 0:
             last_viceroy_ind = self.last_viceroy_block['index']
-            prev_vice_hash = self.hash(self.last_viceroy_block())
+            prev_vice_hash = self.hash(self.last_viceroy_block)
 
         block = {
             'index': len(self.monarch_chain) + 1,
@@ -100,9 +100,10 @@ class BlockChain(object):
             return True
         return False
     
-    # TODO: Checks the balance of the local node address as acknowledged on the chain
+    # Checks the balance of the local node address as acknowledged on the chain
     def check_balance(self, address):
         init_amount = 0
+        # Loop through Monarch chain to do balance accounting
         for block in self.monarch_chain:
             for t in block['records']:
                 if t['sender'] == address:
@@ -228,9 +229,11 @@ class BlockChain(object):
         iter_len = len(self.viceroy_chain)
 
         for i in range(iter_len - 1, -1, -1):
-            record = self.viceroy_chain[i]
-            if record.get("hostname") == hostname and record.get("live_date") <= curr_time:
-                return record
+            records = self.viceroy_chain[i]["records"]
+            for r in records:
+                print(r.get("hostname"), hostname)
+                if r.get("hostname") == hostname and r.get("live_date") <= curr_time:
+                    return r
             
         return None
 
@@ -294,7 +297,6 @@ def mine():
     previous_viceroy_hash = viceroychain.hash(last_viceroy)
     block = {}
     
-    print(viceroy_len)
     if monarch_len >= monarch_block_size_limit:
         msg = "New Monarch Block Forged"
         block = viceroychain.new_monarch_block(proof, previous_hash, previous_viceroy_hash)
