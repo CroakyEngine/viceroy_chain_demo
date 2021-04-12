@@ -10,7 +10,7 @@ from flask import Flask, jsonify, request
 from urllib.parse import urlparse
 from uuid import uuid4
 
-viceroy_block_size_limit = 100
+viceroy_block_size_limit = 3
 monarch_block_size_limit = 1000
 mining_reward = 30
 minting_cost = 5
@@ -91,7 +91,7 @@ class BlockChain(object):
             'domain_owner_signature' : auth_signature
         })
         
-        return self.last_viceroy_block['index'] + 1
+        return self.last_viceroy_block['index'] + 1 if self.last_viceroy_block is not None else 1
     
     # Checks if conditions satisfy for new DNS record to be added
     def record_minting(self, address):
@@ -255,10 +255,10 @@ def new_record():
     address = node_identifier
     if viceroychain.record_minting(address):
         index = viceroychain.new_record(values['r_type'], values['hostname'], values['IP_address'], values['TTL'], values['auth_signature'])
-        response = {'message': f'Record will be added to Block {index} authorised by {minting_cost} Monarchs'}
+        response = {'message': f'Record will be added to Block {index} authorised by {minting_cost} Monarchs from {node_identifier}'}
         return jsonify(response), 201
     else:
-        response = {'message': f'Insufficient funds under current node address. {minting_cost} Monarchs required to authorise a new record.'}
+        response = {'message': f'Insufficient Monarchs from {node_identifier}. {minting_cost} Monarchs required to authorise a new record.'}
         return jsonify(response), 200
 
 # Adds new transactions to Monarch chain
@@ -287,29 +287,30 @@ def mine():
     # Compares length of viceroy chain and monarch chain
     # If both exceeds max_block_size, monarch chain takes precedence
     # Otherwise, mine block for largest amount of data
-    monarch_len = len(viceroychain.monarch_chain)
-    viceroy_len = len(viceroychain.viceroy_chain)
+    monarch_len = len(viceroychain.pending_transactions)
+    viceroy_len = len(viceroychain.pending_records)
 
     previous_hash = viceroychain.hash(last_monarch)
     previous_viceroy_hash = viceroychain.hash(last_viceroy)
     block = {}
     
+    print(viceroy_len)
     if monarch_len >= monarch_block_size_limit:
-        print("1")
+        msg = "New Monarch Block Forged"
         block = viceroychain.new_monarch_block(proof, previous_hash, previous_viceroy_hash)
     elif viceroy_len >= viceroy_block_size_limit:
-        print("2")
+        msg = "New Viceroy Block Forged"
         block = viceroychain.new_viceroy_block(proof, previous_viceroy_hash, previous_hash)
     elif monarch_len >= viceroy_len:
-        print("3")
+        msg = "New Monarch Block Forged"
         block = viceroychain.new_monarch_block(proof, previous_hash, previous_viceroy_hash)
     else:
-        print("4")
+        msg = "New Viceroy Block Forged"
         block = viceroychain.new_viceroy_block(proof, previous_viceroy_hash, previous_hash)
 
     # Return summary of block
     response = {
-        'message': "New Block Forged",
+        'message': msg,
         'index': block['index'],
         'records': block['records'],
         'proof': block['proof'],
