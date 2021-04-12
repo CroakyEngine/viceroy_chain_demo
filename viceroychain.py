@@ -14,7 +14,7 @@ viceroy_block_size_limit = 100
 monarch_block_size_limit = 1000
 mining_reward = 30
 minting_cost = 5
-hash_difficulty = 6
+hash_difficulty = 3
 
 class BlockChain(object):
     def __init__(self):
@@ -49,6 +49,7 @@ class BlockChain(object):
         # Remove transactions added to block from pending_transactions
         self.pending_transactions = [i for i in self.pending_transactions[monarch_block_size_limit:]]
         self.monarch_chain.append(block)
+        return block
 
     def new_viceroy_block(self, proof, previous_hash=None, monarch_hash=None):
         # Collect records up to block limit
@@ -67,6 +68,7 @@ class BlockChain(object):
         # Remove records added to block from pending_records
         self.pending_records = [i for i in self.pending_records[viceroy_block_size_limit:]]
         self.viceroy_chain.append(block)
+        return block
     
     def new_transaction(self, sender, recipient, amount):
         self.pending_transactions.append({
@@ -100,7 +102,15 @@ class BlockChain(object):
     
     # TODO: Checks the balance of the local node address as acknowledged on the chain
     def check_balance(self, address):
-        return 1000
+        init_amount = 0
+        for block in self.monarch_chain:
+            for t in block['records']:
+                if t['sender'] == address:
+                    init_amount -= t['amount']
+                elif t['recipient'] == address:
+                    init_amount += t['amount']
+        
+        return init_amount
 
     @staticmethod
     def hash(block):
@@ -235,7 +245,6 @@ viceroychain = BlockChain()
 # After checking the balance of current node address, upon sufficient funds
 # the addition of a new record will be allowed.
 # Both transactions and records list will be added to.
-# TODO: 
 @app.route('/records/new', methods=['POST'])
 def new_record():
     values = request.get_json()
@@ -252,7 +261,7 @@ def new_record():
         response = {'message': f'Insufficient funds under current node address. {minting_cost} Monarchs required to authorise a new record.'}
         return jsonify(response), 200
 
-# TODO: 
+# Adds new transactions to Monarch chain
 @app.route('/transactions/new', methods=['POST'])
 def new_transaction():
     values = request.get_json()
@@ -265,13 +274,12 @@ def new_transaction():
     return jsonify(response), 201
 
 # Mines the next block and upon success transfers block rewards to node address
-# TODO: 
 @app.route('/mine', methods=['GET'])
 def mine():
     last_monarch = viceroychain.last_monarch_block
     last_viceroy = viceroychain.last_viceroy_block
     monarch_proof = last_monarch['proof']
-    viecroy_proof = last_viceroy['proof']
+    viecroy_proof = last_viceroy['proof'] if last_viceroy is not None else '0'
     proof = viceroychain.proof_of_work(monarch_proof, viecroy_proof)
 
     viceroychain.new_transaction("0", node_identifier, mining_reward)
@@ -287,12 +295,16 @@ def mine():
     block = {}
     
     if monarch_len >= monarch_block_size_limit:
+        print("1")
         block = viceroychain.new_monarch_block(proof, previous_hash, previous_viceroy_hash)
     elif viceroy_len >= viceroy_block_size_limit:
+        print("2")
         block = viceroychain.new_viceroy_block(proof, previous_viceroy_hash, previous_hash)
     elif monarch_len >= viceroy_len:
+        print("3")
         block = viceroychain.new_monarch_block(proof, previous_hash, previous_viceroy_hash)
     else:
+        print("4")
         block = viceroychain.new_viceroy_block(proof, previous_viceroy_hash, previous_hash)
 
     # Return summary of block
@@ -394,4 +406,4 @@ def retrieval():
 
 if __name__=='__main__':
     # TODO: CHANGE PORT TO 0
-    app.run(port=33767)
+    app.run(port=33767, debug=True)
