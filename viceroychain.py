@@ -14,7 +14,7 @@ viceroy_block_size_limit = 3
 monarch_block_size_limit = 1000
 mining_reward = 30
 minting_cost = 5
-hash_difficulty = 3
+hash_difficulty = 5
 
 class BlockChain(object):
     def __init__(self):
@@ -31,7 +31,7 @@ class BlockChain(object):
 
         # Chain last viceroy block to Monarch block if exists
         last_viceroy_ind = 0
-        prev_vice_hash = "0"
+        prev_vice_hash = '0'
         if len(self.viceroy_chain) > 0:
             last_viceroy_ind = self.last_viceroy_block['index']
             prev_vice_hash = self.hash(self.last_viceroy_block)
@@ -121,6 +121,9 @@ class BlockChain(object):
     def proof_of_work(self, last_monarch_proof, last_viceroy_proof):
         proof = 0
         while self.valid_proof(last_monarch_proof, last_viceroy_proof, proof) is False:
+            # # Grabs data to stop read timeout
+            # if 10000 % (proof + 1):
+            #     dummy = request.get_json()
             proof += 1
         
         return proof
@@ -153,11 +156,13 @@ class BlockChain(object):
     def valid_monarch_chain(self, monarch_chain, viceroy_chain):
         last_block = monarch_chain[0]
         current_index = 1
-        vice_cha_len = len(viceroy_chain)
+        vice_chain_len = len(viceroy_chain)
 
         while current_index < len(monarch_chain):
             block = monarch_chain[current_index]
+            last_viceroy_block = viceroy_chain[block['last_viceroy_block_index']] if block['last_viceroy_block_index'] > 0 else None
             print(f'{last_block}')
+            print(f'{last_viceroy_block}')
             print(f'{block}')
             print("\n=-=-=-=-=-=-=-=-=-=-=\n")
             # * Check if monarch chain's hashes are correct
@@ -167,7 +172,10 @@ class BlockChain(object):
             elif vice_chain_len > 0 and block['last_viceroy_block_hash'] != self.hash(viceroy_chain[block['last_viceroy_block_hash']]):
                 return False
             
-            if not self.valid_proof(last_block['proof'], block['proof']):
+            if last_viceroy_block is None:
+                if not self.valid_proof(last_block['proof'], '0', block['proof']):
+                    return False
+            elif not self.valid_proof(last_block['proof'], last_viceroy_block['proof'], block['proof']):
                 return False
             
             last_block = block
@@ -201,14 +209,14 @@ class BlockChain(object):
                 vice_chain = response.json()['viceroy_chain']
 
                 # Replace chain if new monarch chain greater
-                if monarch_length > max_monarch_chain and self.valid_monarch_chain(monarch_chain):
+                if monarch_length > max_monarch_chain and self.valid_monarch_chain(monarch_chain, vice_chain):
                     max_monarch_chain = monarch_length
                     max_viceroy_chain = viceroy_length
                     new_monarch_chain = monarch_chain
                     new_viceroy_chain = vice_chain
                 # Replace chain if monarch chain equal, but greater viceroy chain
-                elif monarch_length == max_monarch_chain and self.valid_monarch_chain(monarch_chain):
-                    if viceroy_length > max_viceroy_length:
+                elif monarch_length == max_monarch_chain and self.valid_monarch_chain(monarch_chain, vice_chain):
+                    if viceroy_length > max_viceroy_chain:
                         max_monarch_chain = monarch_length
                         max_viceroy_chain = viceroy_length
                         new_monarch_chain = monarch_chain
@@ -221,6 +229,7 @@ class BlockChain(object):
             return True
 
         return False
+
 
     # Searches through records to find matching hostname and check if service is currently live
     # Loops from the end of the list so the most recent version of the record will be used
@@ -333,13 +342,15 @@ def full_chain():
     }
     return jsonify(response), 200
 
-# TODO: DEBUG ONLY! REMOVE AFTER FINISHED
+
+# TODO: * DEBUG ONLY! Displays all registered nodes
 @app.route('/nodes', methods=['GET'])
 def get_nodes():
     response = {
         'total_nodes': list(viceroychain.nodes),
     }
     return jsonify(response), 200
+
 
 # Registers other nodes in the network
 @app.route('/nodes/register', methods=['POST'])
@@ -368,13 +379,13 @@ def consensus():
         response = {
             'message': 'Our chain was replaced',
             'new_monarch_chain': viceroychain.monarch_chain,
-            'new_viceroy_chain': viceroychain.viceroychain
+            'new_viceroy_chain': viceroychain.viceroy_chain
         }
     else:
         response = {
             'message': 'Our chain is authoritative',
             'monarch_chain': viceroychain.monarch_chain,
-            'viceroy_chain': viceroychain.viceroychain
+            'viceroy_chain': viceroychain.viceroy_chain
         }
     return jsonify(response), 200
 
@@ -409,4 +420,4 @@ def retrieval():
 
 if __name__=='__main__':
     # TODO: CHANGE PORT TO 0
-    app.run(port=33767, debug=True)
+    app.run(port=33767)
