@@ -167,15 +167,20 @@ class BlockChain(object):
             print("\n=-=-=-=-=-=-=-=-=-=-=\n")
             # * Check if monarch chain's hashes are correct
             if block['previous_hash'] != self.hash(last_block):
+                print("BRUHHHHHHHHHHHHHHHHHH ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
                 return False
             # * Check if linked viceroy block is also valid
-            elif vice_chain_len > 0 and block['last_viceroy_block_hash'] != self.hash(viceroy_chain[block['last_viceroy_block_hash']]):
+            # TODO: Dodgy code here. To refactor and debug later
+            elif vice_chain_len > 0 and block['last_viceroy_block_index'] > 0 and block['last_viceroy_block_hash'] != self.hash(viceroy_chain[block['last_viceroy_block_index']]):
+                print(block['last_viceroy_block_hash'], " | ", self.hash(viceroy_chain[block['last_viceroy_block_index']]))
                 return False
             
             if last_viceroy_block is None:
                 if not self.valid_proof(last_block['proof'], '0', block['proof']):
+                    print("BRUHHHHHHHHHHHHHHHHHH ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
                     return False
             elif not self.valid_proof(last_block['proof'], last_viceroy_block['proof'], block['proof']):
+                print("BRUHHHHHHHHHHHHHHHHHH ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
                 return False
             
             last_block = block
